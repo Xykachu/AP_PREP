@@ -1,0 +1,103 @@
+namespace SampleAnswerInClassAssmt
+{
+    class Program
+    {
+        [ThreadStaticAttribute()]
+        static int sumCards = 0;
+
+        [ThreadStaticAttribute()]
+        static string answer = "y";
+
+        static int[] arrayCards = new int[20];
+
+        static int lastLocation = 0;
+        static int finish = 2;
+        static object locker = new object();
+
+        static List<FinalScore> fs = new List<FinalScore>();
+       
+        static Thread player1 = new Thread(new ThreadStart(GetCard));
+        static Thread player2 = new Thread(new ThreadStart(GetCard));
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Dealer generated the following numbers:");
+            Random rdm = new Random();
+            for (int i = 0; i < 20; i++)
+            {
+                arrayCards[i] = rdm.Next(1, 10);
+                Console.Write("{0}-", arrayCards[i]);
+            }
+
+            player1.Name = "Player1";
+            player2.Name = "Player2";
+
+            player1.Start();
+            player2.Start();
+
+            player1.Join();
+            player2.Join();
+
+            
+            if (fs[0].result < fs[1].result)
+                    Console.WriteLine("\n\nThe winner is {0}", fs[0].ThreadName);
+            else
+                if (fs[0].result > fs[1].result)
+                    Console.WriteLine("\n\nThe winner is {0}", fs[1].ThreadName);
+                else
+                    Console.WriteLine("\n\nBoth players got the same result");
+           
+           
+            Console.ReadLine();
+        } //end main
+
+        static void GetCard()
+        {
+            Monitor.Enter(locker);
+            try
+            {
+                while (lastLocation < 20 && finish > 0)
+                {
+                    int noElemRemaining = 20 - lastLocation;
+
+                    if (answer != "n")
+                    {
+                        Console.WriteLine("\n{0}, do you want to get a card?", Thread.CurrentThread.Name);
+
+                        answer = Console.ReadLine();
+
+                        if (answer != "n")
+                        {
+                            sumCards += arrayCards[lastLocation];
+                            Console.WriteLine("{0} got {1} points and now has a sum of {2} ", Thread.CurrentThread.Name, arrayCards[lastLocation], sumCards);
+                            lastLocation++;
+                        }
+                        else
+                        {
+                            finish--;
+                            fs.Add(new FinalScore(Thread.CurrentThread.Name, sumCards));
+                        }
+                    }
+                                        
+
+                    Monitor.Pulse(locker);
+                    Monitor.Wait(locker);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                Console.WriteLine("{0} accumulated {1} points", Thread.CurrentThread.Name, sumCards);
+                Console.WriteLine("{0} EXITS \n", Thread.CurrentThread.Name);
+                Monitor.Pulse(locker);
+                Monitor.Exit(locker);
+
+                
+            }
+
+        }
+    }
+} 
