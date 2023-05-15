@@ -1,0 +1,183 @@
+namespace AdvProg_Assessment
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        BackgroundWorker worker = new BackgroundWorker();
+
+        int GuessedWordCount = 0;
+        int GuessedLetterCount = 0;
+        string wrongLetters = "";
+        List<string> HangmanWords = new List<string>() { "Dove", "Bank", "Word", "Hang" };
+
+        public MainWindow()
+        {
+            InitializeComponent();
+            WordReset();
+            worker.WorkerReportsProgress = true;
+            worker.WorkerSupportsCancellation = true;
+
+            worker.DoWork += Worker_DoWork;
+            worker.ProgressChanged += Worker_ProgressChanged;
+            worker.RunWorkerCompleted += Worker_RunWorkerCompleted;
+        }
+
+        private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Cancelled)
+            {
+                MessageBox.Show("You cancelled the game");
+            }
+            else
+            {
+                MessageBox.Show("You have won the game! The background worker is now complete!");
+            }
+        }
+
+        private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            PrgBrGame.Value = e.ProgressPercentage;
+        }
+
+        private void Worker_DoWork(object sender, DoWorkEventArgs e)
+        {
+            GuessedLetterCount = 0;
+            GuessedWordCount = 0;
+            Dispatcher.Invoke(() => WordReset());
+
+            while(GuessedWordCount < HangmanWords.Count)
+            {
+                if (worker.CancellationPending)
+                {
+                    e.Cancel = true;
+                    break;
+                }
+
+                Thread.Sleep(3000); //Three second break between checks
+
+                //Retrieve letter
+                string guessedLetter = string.Empty;
+                Dispatcher.Invoke(() => guessedLetter = GetLetter());
+
+                if (!string.IsNullOrWhiteSpace(guessedLetter))
+                {
+                    //Clear guess box
+                    Dispatcher.Invoke(() => TxtBxGuess.Text = "");
+
+
+                    if (HangmanWords[GuessedWordCount].ToUpper().Contains(guessedLetter))
+                    {
+                        //Correct letter guess
+                        GuessedLetterCount++;
+                        int index = HangmanWords[GuessedWordCount].ToUpper().IndexOf(guessedLetter);
+
+                        Dispatcher.Invoke(() => DisplayLetter(index));
+
+                        //All letters guessed
+                        if (GuessedLetterCount >= HangmanWords[GuessedWordCount].Length)
+                        {
+                            GuessedWordCount++;
+
+                            Thread.Sleep(1000);
+                            MessageBox.Show("Well done, you guessed the word!");
+                            worker.ReportProgress(GetPercentage(GuessedWordCount,HangmanWords.Count));
+                            
+                            Dispatcher.Invoke(() => WordReset());
+
+                            if (worker.CancellationPending)
+                            {
+                                e.Cancel = true;
+                                break;
+                            }
+
+                            if(GetPercentage(GuessedWordCount, HangmanWords.Count) != 100)
+                                MessageBox.Show("Guess this new word by typing letters in the text box and waiting a few seconds until the text box clears – then type another letter, etc.");
+                        }
+                    }
+                    else
+                    {
+                        //Incorrect letter guess
+                        wrongLetters = string.Concat(wrongLetters, guessedLetter, ", ");
+                        Dispatcher.Invoke(() => LblGuessedLetters.Content = wrongLetters);
+                    }
+                }
+
+                if (worker.CancellationPending)
+                {
+                    e.Cancel = true;
+                    break;
+                }
+            }
+        }
+
+        private void StartGame_Click(object sender, RoutedEventArgs e)
+        {
+            LblStatus.Content = "Enter your guess above!";
+            worker.RunWorkerAsync();
+        }
+
+        private void CancelGame_Click(object sender, RoutedEventArgs e)
+        {
+            LblStatus.Content = "Press start button to begin!";
+            worker.CancelAsync();
+        }
+
+        public string GetLetter()
+        {
+            if (!string.IsNullOrWhiteSpace(TxtBxGuess.Text))
+            {
+                return TxtBxGuess.Text[0].ToString().ToUpper();
+            }
+            else return string.Empty;
+        }
+
+        public void DisplayLetter(int index)
+        {
+            switch(index)
+            {
+                case 0:
+                    TxtBxLetter1.Text = HangmanWords[GuessedWordCount].ToUpper()[index].ToString();
+                    break;
+
+                case 1:
+                    TxtBxLetter2.Text = HangmanWords[GuessedWordCount].ToUpper()[index].ToString();
+                    break;
+
+                case 2:
+                    TxtBxLetter3.Text = HangmanWords[GuessedWordCount].ToUpper()[index].ToString();
+                    break;
+
+                case 3:
+                    TxtBxLetter4.Text = HangmanWords[GuessedWordCount].ToUpper()[index].ToString();
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        public void WordReset()
+        {
+            TxtBxLetter1.Text = "";
+            TxtBxLetter2.Text = "";
+            TxtBxLetter3.Text = "";
+            TxtBxLetter4.Text = "";
+            TxtBxGuess.Text = "";
+            LblGuessedLetters.Content = "";
+
+            GuessedLetterCount = 0;
+            wrongLetters = "";
+        }
+
+        public int GetPercentage(double progress,double total)
+        {
+            int val =  (int)Math.Round((progress/total) * 100, 0);
+            return val;
+        }
+    }
+} 
+
+
+
